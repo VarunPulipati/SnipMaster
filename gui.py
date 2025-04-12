@@ -5,30 +5,30 @@ from tkinter import ttk, messagebox, Menu, simpledialog
 try:
     from PIL import Image, ImageTk
 except ImportError as e: print(f"ERROR: {e}\npip install Pillow"); exit()
-# Import modules
+# Import standard libraries
+import os
+import webbrowser
+import urllib.parse
+# Import project modules
 import clipboard
-import helpers
+import helpers # Import helpers module
 import slots
 # Import specific items needed
 from clipboard import ( clear_clipboard, handle_paste, rewrite_content, rephrase_content, setup_shortcuts, set_gui_refresh_callback, clipboard_slots )
 from slots import ( delete_slot, edit_slot, assign_slot, show_context_menu )
-from helpers import search_function, on_drag_start, on_drag_motion
-import os
+# Import the new function and other needed functions from helpers
+from helpers import search_function, on_drag_start, on_drag_motion, resource_path
+
 
 # --- Globals ---
 root = None; close_button = None; new_window = None
-delete_icon_img = None; options_icon_img = None
+# Icon image storage
+delete_icon_img = None; options_icon_img = None; search_icon_img = None
 
 # --- Color Constants ---
-BG_COLOR = '#F0F0F0'
-FRAME_BG_COLOR = '#E0E0E0'
-TEXT_COLOR = '#333333'
-BUTTON_BG = '#D0D0D0'
-BUTTON_FG = '#000000'
-ACCENT_COLOR = '#0078D7'
-CLOSE_BUTTON_BG = '#E81123'
-GO_BUTTON_BG = '#107C10'
-SLOT_ITEM_BG = '#FFFFFF'
+BG_COLOR = '#F0F0F0'; FRAME_BG_COLOR = '#E0E0E0'; TEXT_COLOR = '#333333'
+BUTTON_BG = '#D0D0D0'; BUTTON_FG = '#000000'; ACCENT_COLOR = '#0078D7'
+CLOSE_BUTTON_BG = '#E81123'; GO_BUTTON_BG = '#107C10'; SLOT_ITEM_BG = '#FFFFFF'
 SLOT_ITEM_HOVER_BG = '#E5F1FB'
 
 # --- Refresh Scheduling ---
@@ -37,54 +37,54 @@ def schedule_refresh():
 
 # --- Style Configuration ---
 def configure_styles(target_root):
-    global delete_icon_img, options_icon_img
-    style = ttk.Style()
-    try: default_font, bold_font, title_font = ('Segoe UI', 10), ('Segoe UI', 10, 'bold'), ('Segoe UI', 12, 'bold')
+    global delete_icon_img, options_icon_img, search_icon_img
+    style = ttk.Style(); default_font = ('Segoe UI', 10)
+    try: bold_font, title_font = ('Segoe UI', 10, 'bold'), ('Segoe UI', 12, 'bold')
     except tk.TclError: default_font, bold_font, title_font = ('Helvetica', 10), ('Helvetica', 10, 'bold'), ('Helvetica', 12, 'bold')
     style.configure('.', font=default_font); style.theme_use('clam')
-
     if target_root and target_root.winfo_exists(): target_root.configure(bg=BG_COLOR)
-    style.configure('TFrame', background=FRAME_BG_COLOR)
-    style.configure('SlotItem.TFrame', background=SLOT_ITEM_BG)
+    style.configure('TFrame', background=FRAME_BG_COLOR); style.configure('SlotItem.TFrame', background=SLOT_ITEM_BG)
     style.map('SlotItem.TFrame', background=[('active', SLOT_ITEM_HOVER_BG)])
     style.configure('TLabel', background=FRAME_BG_COLOR, foreground=TEXT_COLOR, padding=(5, 2))
-    style.configure('SlotItem.TLabel', background=SLOT_ITEM_BG, foreground=TEXT_COLOR)
-    style.map('SlotItem.TLabel', background=[('active', SLOT_ITEM_HOVER_BG)])
-    style.configure('Title.TLabel', font=title_font, foreground=ACCENT_COLOR, background=FRAME_BG_COLOR)
-    style.configure('Header.TLabel', font=bold_font, background=FRAME_BG_COLOR)
-    style.configure('Link.TLabel', foreground=ACCENT_COLOR, background=SLOT_ITEM_BG, font=default_font + ('underline',))
-    style.map('Link.TLabel', background=[('active', SLOT_ITEM_HOVER_BG)])
-    style.configure('TButton', font=bold_font, padding=(10, 5))
-    style.map('TButton', background=[('!active', BUTTON_BG), ('active', '#B0B0B0')], foreground=[('!active', BUTTON_FG), ('active', '#000000')])
+    style.configure('SlotItem.TLabel', background=SLOT_ITEM_BG, foreground=TEXT_COLOR); style.map('SlotItem.TLabel', background=[('active', SLOT_ITEM_HOVER_BG)])
+    style.configure('Title.TLabel', font=title_font, foreground=ACCENT_COLOR, background=FRAME_BG_COLOR); style.configure('Header.TLabel', font=bold_font, background=FRAME_BG_COLOR)
+    style.configure('Link.TLabel', foreground=ACCENT_COLOR, background=SLOT_ITEM_BG, font=default_font + ('underline',)); style.map('Link.TLabel', background=[('active', SLOT_ITEM_HOVER_BG)])
+    style.configure('TButton', font=bold_font, padding=(10, 5)); style.map('TButton', background=[('!active', BUTTON_BG), ('active', '#B0B0B0')], foreground=[('!active', BUTTON_FG), ('active', '#000000')])
     style.configure('Close.TButton', background=CLOSE_BUTTON_BG, foreground='white'); style.map('Close.TButton', background=[('active', '#F1707A')])
     style.configure('Go.TButton', background=GO_BUTTON_BG, foreground='white'); style.map('Go.TButton', background=[('active', '#3B9D3B')])
 
-    # --- Action Button Style (Load Icons) ---
-    assets_dir = 'assets'; delete_icon_path = os.path.join(assets_dir, 'delete_icon.png'); options_icon_path = os.path.join(assets_dir, 'options_icon.png')
-    delete_icon_img = None; options_icon_img = None; delete_text = '🗑️'; options_text = '≡'
-    try: img = Image.open(delete_icon_path).resize((16, 16), Image.Resampling.LANCZOS); delete_icon_img = ImageTk.PhotoImage(img); print("[GUI Style] Delete icon loaded."); delete_text = ''
-    except FileNotFoundError: print(f"[GUI Style] Warning: '{delete_icon_path}' not found. Using text fallback '{delete_text}'.")
-    except Exception as e: print(f"[GUI Style] Error loading delete icon: {e}")
-    try: img = Image.open(options_icon_path).resize((16, 16), Image.Resampling.LANCZOS); options_icon_img = ImageTk.PhotoImage(img); print("[GUI Style] Options icon loaded."); options_text = ''
-    except FileNotFoundError: print(f"[GUI Style] Warning: '{options_icon_path}' not found. Using text fallback '{options_text}'.")
-    except Exception as e: print(f"[GUI Style] Error loading options icon: {e}")
+    # --- Load Icons using resource_path ---
+    assets_dir = 'assets' # Keep assets folder name
+    icons_to_load = {
+        'delete': ('delete_icon.png', '🗑️'),
+        'options': ('options_icon.png', '≡'),
+        'search': ('search_icon.png', '🔍')
+    }
+    icon_images = {'delete': None, 'options': None, 'search': None}
+    icon_texts = {'delete': icons_to_load['delete'][1], 'options': icons_to_load['options'][1], 'search': icons_to_load['search'][1]}
 
-    # *** FIXED: Removed image=None from style configuration ***
-    style.configure('ActionButton.TButton',
-                    font=('Segoe UI Symbol', 10) if (delete_text or options_text) else default_font,
-                    padding=(2, 0), background=SLOT_ITEM_BG, relief='flat', borderwidth=0,
-                    compound='center', width=-1) # Compound tells button how to show text+image later if needed
+    for key, (filename, fallback_text) in icons_to_load.items():
+        # *** Use resource_path here ***
+        icon_path = resource_path(os.path.join(assets_dir, filename))
+        try:
+            img = Image.open(icon_path).resize((16, 16), Image.Resampling.LANCZOS)
+            icon_images[key] = ImageTk.PhotoImage(img)
+            print(f"[GUI Style] {key.capitalize()} icon loaded from: {icon_path}")
+            icon_texts[key] = '' # Use image
+        except FileNotFoundError: print(f"[GUI Style] Warning: Icon not found at '{icon_path}'. Using text fallback '{fallback_text}'.")
+        except Exception as e: print(f"[GUI Style] Error loading {key} icon '{icon_path}': {e}")
+
+    delete_icon_img, options_icon_img, search_icon_img = icon_images['delete'], icon_images['options'], icon_images['search']
+    # --- End Icon Loading ---
+
+    use_symbol_font = any(icon_texts.values()); action_button_font = ('Segoe UI Symbol', 10) if use_symbol_font else default_font
+    style.configure('ActionButton.TButton', font=action_button_font, padding=(2, 0), background=SLOT_ITEM_BG, relief='flat', borderwidth=0, compound='center', width=-1)
     style.map('ActionButton.TButton', background=[('active', SLOT_ITEM_HOVER_BG), ('!active', SLOT_ITEM_BG)], relief=[('pressed', 'flat'), ('active', 'flat')])
-
     style.configure('TCombobox', padding=(5, 2))
-    if target_root and target_root.winfo_exists():
-        target_root.option_add('*TCombobox*Listbox.font', default_font); target_root.option_add('*TCombobox*Listbox.background', '#FFFFFF')
-        target_root.option_add('*TCombobox*Listbox.foreground', TEXT_COLOR); target_root.option_add('*TCombobox*Listbox.selectBackground', ACCENT_COLOR)
-        target_root.option_add('*TCombobox*Listbox.selectForeground', '#FFFFFF')
+    if target_root and target_root.winfo_exists(): target_root.option_add('*TCombobox*Listbox.font', default_font); target_root.option_add('*TCombobox*Listbox.background', '#FFFFFF'); target_root.option_add('*TCombobox*Listbox.foreground', TEXT_COLOR); target_root.option_add('*TCombobox*Listbox.selectBackground', ACCENT_COLOR); target_root.option_add('*TCombobox*Listbox.selectForeground', '#FFFFFF')
 
 
 # --- Icon Click & Setup ---
-# (on_icon_click, setup_floating_icon remain the same)
 def on_icon_click(event):
     if root: root.withdraw(); open_new_window()
 def setup_floating_icon():
@@ -92,15 +92,21 @@ def setup_floating_icon():
     root = tk.Tk(); root.title("ClipApp Icon"); root.overrideredirect(True); root.attributes("-topmost", True)
     sw, sh = root.winfo_screenwidth(), root.winfo_screenheight(); ww, wh = 50, 50; xo, yo = sw - ww - 20, 20
     root.geometry(f"{ww}x{wh}+{xo}+{yo}"); root.resizable(False, False); configure_styles(root); root.configure(bg='white', highlightthickness=1, highlightbackground='grey')
-    icon_widget = None; icon_path = "assets/cert.jpeg" # *** YOUR ICON PATH ***
-    try: print(f"[gui.py] Loading icon: {icon_path}"); img = Image.open(icon_path).resize((ww-10, wh-10), Image.Resampling.LANCZOS); ph = ImageTk.PhotoImage(img); lbl = tk.Label(root, image=ph, bg="white", bd=0); lbl.image = ph; lbl.pack(expand=True, fill='both', padx=5, pady=5); icon_widget = lbl
-    except Exception as e: print(f"[gui.py] Icon load error: {e}"); lbl = tk.Label(root, text="CA", font=("Arial", 16, "bold"), bg="white", fg="#0078D7"); lbl.pack(expand=True, fill='both'); icon_widget = lbl
+    icon_widget = None;
+    # *** Use resource_path here ***
+    icon_path = resource_path("assets/cert.jpeg") # *** YOUR APP ICON PATH ***
+    try:
+        print(f"[gui.py] Loading app icon: {icon_path}")
+        img = Image.open(icon_path).resize((ww-10, wh-10), Image.Resampling.LANCZOS)
+        ph = ImageTk.PhotoImage(img); lbl = tk.Label(root, image=ph, bg="white", bd=0)
+        lbl.image = ph; lbl.pack(expand=True, fill='both', padx=5, pady=5); icon_widget = lbl
+    except Exception as e: print(f"[gui.py] App icon load error '{icon_path}': {e}"); lbl = tk.Label(root, text="CA", font=("Arial", 16, "bold"), bg="white", fg="#0078D7"); lbl.pack(expand=True, fill='both'); icon_widget = lbl
+    # Bindings remain the same
     if icon_widget: icon_widget.bind("<ButtonRelease-1>", on_icon_click); icon_widget.bind("<Button-1>", lambda e, r=root: on_drag_start(e, r)); icon_widget.bind("<B1-Motion>", lambda e, r=root: on_drag_motion(e, r)); icon_widget.bind("<Enter>", on_hover); icon_widget.bind("<Leave>", on_leave)
     close_button = tk.Button(root, text="✕", command=close_icon, bg="#E81123", fg="white", relief="flat", font=("Arial", 8, "bold"), bd=0, activebackground="#F1707A", activeforeground="white", padx=0, pady=0, borderwidth=0, highlightthickness=0)
     root.bind("<Leave>", on_leave)
     print("[gui.py] Registering GUI refresh callback..."); set_gui_refresh_callback(schedule_refresh); setup_shortcuts()
     print("[gui.py] Starting Tkinter main loop..."); root.mainloop(); print("[gui.py] Tkinter main loop finished.")
-
 
 # --- Main Window ---
 # (open_new_window remains the same - includes scrollable canvas setup)
@@ -109,11 +115,11 @@ def open_new_window():
     if new_window and new_window.winfo_exists(): new_window.lift(); return
     if not root: print("[gui.py] Error: Root window not found."); return
     new_window = tk.Toplevel(root); new_window.title("ClipApp Dashboard")
-    init_w, init_h = 450, 550
+    init_w, init_h = 500, 550
     sw, sh = new_window.winfo_screenwidth(), new_window.winfo_screenheight()
     ix, iy = root.winfo_x(), root.winfo_y(); idx, idy = ix - init_w - 10, iy
     fx, fy = max(0, min(idx, sw - init_w)), max(0, min(idy, sh - init_h))
-    new_window.geometry(f"1x1+{fx}+{fy}"); new_window.attributes("-topmost", True); new_window.resizable(True, True); new_window.minsize(350, 300)
+    new_window.geometry(f"1x1+{fx}+{fy}"); new_window.attributes("-topmost", True); new_window.resizable(True, True); new_window.minsize(400, 300)
     configure_styles(new_window)
 
     mf = ttk.Frame(new_window, padding="10 10 10 10", style='TFrame'); mf.pack(expand=True, fill="both")
@@ -134,17 +140,19 @@ def open_new_window():
     inner_slots_frame = ttk.Frame(slots_canvas, style='TFrame', padding=0); new_window.slots_frame = inner_slots_frame
     canvas_window = slots_canvas.create_window((0, 0), window=inner_slots_frame, anchor="nw", tags="inner_frame")
 
-    def update_scroll_region(event):
-        canvas_width = event.width; slots_canvas.itemconfig(canvas_window, width=canvas_width)
-        slots_canvas.configure(scrollregion=slots_canvas.bbox("all"))
+    def update_scroll_region(event): canvas_width = event.width; slots_canvas.itemconfig(canvas_window, width=canvas_width); slots_canvas.configure(scrollregion=slots_canvas.bbox("all"))
     def on_mousewheel(event):
         scroll_dir = 0;
-        if event.num == 5 or event.delta < 0: scroll_dir = 1
-        elif event.num == 4 or event.delta > 0: scroll_dir = -1
-        slots_canvas.yview_scroll(scroll_dir, "units")
+        try:
+             if event.delta < 0: scroll_dir = 1
+             elif event.delta > 0: scroll_dir = -1
+        except AttributeError:
+             if event.num == 5: scroll_dir = 1
+             elif event.num == 4: scroll_dir = -1
+        if scroll_dir != 0: slots_canvas.yview_scroll(scroll_dir, "units")
 
     slots_canvas.bind("<Configure>", update_scroll_region)
-    slots_canvas.bind_all('<MouseWheel>', on_mousewheel); slots_canvas.bind_all('<Button-4>', on_mousewheel); slots_canvas.bind_all('<Button-5>', on_mousewheel)
+    slots_canvas.bind('<MouseWheel>', on_mousewheel); slots_canvas.bind('<Button-4>', on_mousewheel); slots_canvas.bind('<Button-5>', on_mousewheel)
 
     populate_slots_frame(inner_slots_frame)
 
@@ -156,12 +164,13 @@ def open_new_window():
     dd.grid(row=0, column=1, padx=(0, 5), sticky='ew'); new_window.search_dropdown = dd
     sb = ttk.Button(sc, text="Go", command=lambda sv=sv: search_function(sv.get()), style='Go.TButton'); sb.grid(row=0, column=2, sticky='e')
     cmb = ttk.Button(mf, text="Close Window", command=lambda nw=new_window: close_new_window(nw), style='TButton'); cmb.grid(row=5, column=0, pady=(10, 0), sticky='ew')
+
     new_window.protocol("WM_DELETE_WINDOW", lambda nw=new_window: close_new_window(nw));
     animate_window(new_window, init_w, init_h, fx, fy)
 
 
 # --- Helper Functions for Slot Actions ---
-# (confirm_and_delete, show_slot_options_menu remain the same)
+# (confirm_and_delete, show_slot_options_menu, search_web_for_content remain the same)
 def confirm_and_delete(slot_key, parent_window):
     valid_parent = parent_window if parent_window and parent_window.winfo_exists() else root
     if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete Slot '{slot_key}'?", parent=valid_parent):
@@ -173,16 +182,24 @@ def show_slot_options_menu(event, slot_key, parent_window):
     menu.add_separator()
     menu.add_command(label="Assign New Content", command=lambda sk=slot_key, p=valid_parent: assign_slot_and_refresh(sk, p))
     menu.add_command(label="Edit Slot Name", command=lambda sk=slot_key, p=valid_parent: edit_slot_and_refresh(sk, p))
-    menu.add_command(label="Rewrite Content", command=lambda sk=slot_key, p=valid_parent: rewrite_content_and_refresh(sk, p))
-    menu.add_command(label="Rephrase Content (Basic)", command=lambda sk=slot_key, p=valid_parent: rephrase_content_and_refresh(sk, p))
+    menu.add_command(label="Rewrite Content (AI)", command=lambda sk=slot_key, p=valid_parent: rewrite_content_and_refresh(sk, p))
+    menu.add_command(label="Rephrase Content (AI)", command=lambda sk=slot_key, p=valid_parent: rephrase_content_and_refresh(sk, p))
+    # Added Search Web to menu
+    menu.add_separator()
+    menu.add_command(label="Search Web for Content", command=lambda sk=slot_key: search_web_for_content(sk))
     try: widget = event.widget; menu.post(widget.winfo_rootx(), widget.winfo_rooty() + widget.winfo_height())
     except tk.TclError as e: print(f"Debug: Failed to post options menu: {e}")
-
+def search_web_for_content(slot_key):
+    content = clipboard_slots.get(slot_key)
+    if content:
+        try: search_query = urllib.parse.quote_plus(content); url = f"https://www.google.com/search?q={search_query}"; print(f"[gui.py] Opening browser search: {content[:50]}..."); webbrowser.open(url, new=2)
+        except Exception as e: print(f"[gui.py] Error opening web browser: {e}"); messagebox.showerror("Browser Error", f"Could not open web browser:\n{e}")
+    else: print(f"[gui.py] Cannot search web, slot '{slot_key}' not found or empty.")
 
 # --- Populate Slots Frame ---
 # (populate_slots_frame remains the same - uses icons/symbols defined in configure_styles)
 def populate_slots_frame(frame):
-    global delete_icon_img, options_icon_img
+    global delete_icon_img, options_icon_img, search_icon_img
     if not frame or not frame.winfo_exists(): return
     for widget in frame.winfo_children(): widget.destroy()
     def sort_key(item): key = item[0]; return (0, int(key)) if key.isdigit() else (1, key)
@@ -191,21 +208,25 @@ def populate_slots_frame(frame):
         ttk.Label(frame, text="No clipboard slots saved yet.", style='TLabel', anchor='center').pack(pady=20, fill='x'); frame.update_idletasks(); return
     parent_win_for_dialogs = new_window if new_window and new_window.winfo_exists() else root
     for idx, (slot_key, content) in enumerate(sorted_items):
-        item_frame = ttk.Frame(frame, padding=(5, 3), style='SlotItem.TFrame'); item_frame.pack(fill='x', pady=(0, 1), padx=1)
+        item_frame = ttk.Frame(frame, padding=(5, 4), style='SlotItem.TFrame'); item_frame.pack(fill='x', pady=(0, 1), padx=1)
         item_frame.bind("<Enter>", lambda e, w=item_frame: w.state(['active'])); item_frame.bind("<Leave>", lambda e, w=item_frame: w.state(['!active']))
         def on_child_enter(e, parent_frame): parent_frame.state(['active'])
         def on_child_leave(e, parent_frame): parent_frame.state(['!active'])
-        item_frame.grid_columnconfigure(0, weight=0); item_frame.grid_columnconfigure(1, weight=1); item_frame.grid_columnconfigure(2, weight=0); item_frame.grid_columnconfigure(3, weight=0)
+        item_frame.grid_columnconfigure(0, weight=0); item_frame.grid_columnconfigure(1, weight=1); item_frame.grid_columnconfigure(2, weight=0); item_frame.grid_columnconfigure(3, weight=0); item_frame.grid_columnconfigure(4, weight=0)
         slot_label = ttk.Label(item_frame, text=f"Slot {slot_key}:", style='Link.TLabel', cursor="hand2", anchor="w"); slot_label.grid(row=0, column=0, padx=(0, 10), sticky='w'); slot_label.bind("<Button-1>", lambda e, sk=slot_key: handle_paste(sk)); slot_label.bind("<Enter>", lambda e, p=item_frame: on_child_enter(e, p)); slot_label.bind("<Leave>", lambda e, p=item_frame: on_child_leave(e, p))
         display_content = content.replace('\n', ' ').replace('\r', ''); display_content = display_content if len(display_content) < 60 else display_content[:57] + "..."; content_label = ttk.Label(item_frame, text=display_content, style='SlotItem.TLabel', anchor="w"); content_label.grid(row=0, column=1, sticky='ew'); content_label.bind("<Button-1>", lambda e, sk=slot_key: handle_paste(sk)); content_label.bind("<Enter>", lambda e, p=item_frame: on_child_enter(e, p)); content_label.bind("<Leave>", lambda e, p=item_frame: on_child_leave(e, p))
+        search_btn = ttk.Button(item_frame, style='ActionButton.TButton', cursor="hand2", command=lambda sk=slot_key: search_web_for_content(sk))
+        if search_icon_img: search_btn.configure(image=search_icon_img)
+        else: search_btn.configure(text='🔍')
+        search_btn._image_ref = search_icon_img; search_btn.grid(row=0, column=2, padx=(5, 0)); search_btn.bind("<Enter>", lambda e, p=item_frame: on_child_enter(e, p)); search_btn.bind("<Leave>", lambda e, p=item_frame: on_child_leave(e, p))
         delete_btn = ttk.Button(item_frame, style='ActionButton.TButton', cursor="hand2", command=lambda sk=slot_key, p=parent_win_for_dialogs: confirm_and_delete(sk, p));
         if delete_icon_img: delete_btn.configure(image=delete_icon_img)
         else: delete_btn.configure(text='🗑️')
-        delete_btn._image_ref = delete_icon_img; delete_btn.grid(row=0, column=2, padx=(5, 0)); delete_btn.bind("<Enter>", lambda e, p=item_frame: on_child_enter(e, p)); delete_btn.bind("<Leave>", lambda e, p=item_frame: on_child_leave(e, p))
+        delete_btn._image_ref = delete_icon_img; delete_btn.grid(row=0, column=3, padx=(0, 0)); delete_btn.bind("<Enter>", lambda e, p=item_frame: on_child_enter(e, p)); delete_btn.bind("<Leave>", lambda e, p=item_frame: on_child_leave(e, p))
         options_btn = ttk.Button(item_frame, style='ActionButton.TButton', cursor="hand2");
         if options_icon_img: options_btn.configure(image=options_icon_img)
-        else: options_btn.configure(text='≡') # Changed fallback symbol
-        options_btn._image_ref = options_icon_img; options_btn.bind("<Button-1>", lambda e, sk=slot_key, p=parent_win_for_dialogs: show_slot_options_menu(e, sk, p)); options_btn.grid(row=0, column=3, padx=(0, 2)); options_btn.bind("<Enter>", lambda e, p=item_frame: on_child_enter(e, p)); options_btn.bind("<Leave>", lambda e, p=item_frame: on_child_leave(e, p))
+        else: options_btn.configure(text='≡')
+        options_btn._image_ref = options_icon_img; options_btn.bind("<Button-1>", lambda e, sk=slot_key, p=parent_win_for_dialogs: show_slot_options_menu(e, sk, p)); options_btn.grid(row=0, column=4, padx=(0, 2)); options_btn.bind("<Enter>", lambda e, p=item_frame: on_child_enter(e, p)); options_btn.bind("<Leave>", lambda e, p=item_frame: on_child_leave(e, p))
     frame.update_idletasks()
 
 # --- Animation ---
@@ -250,9 +271,9 @@ def assign_slot_and_refresh(identifier, parent_window):
 def edit_slot_and_refresh(identifier, parent_window):
     if edit_slot(identifier): schedule_refresh()
 def rewrite_content_and_refresh(identifier, parent_window):
-    if rewrite_content(identifier): schedule_refresh()
+    if rewrite_content(identifier): schedule_refresh() # Assumes rewrite_content returns True on success
 def rephrase_content_and_refresh(identifier, parent_window):
-    if rephrase_content(identifier): schedule_refresh()
+    if rephrase_content(identifier): schedule_refresh() # Assumes rephrase_content returns True on success
 
 # --- Window Management ---
 # (close_new_window, on_hover, on_leave, close_icon remain the same)
