@@ -1,0 +1,17 @@
+# PyInstaller folders
+build/
+dist/
+*.spec
+
+# Python cache and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment folder (if using venv)
+venv/
+
+# OS-specific files (optional examples)
+.DS_Store
+Thumbs.db
