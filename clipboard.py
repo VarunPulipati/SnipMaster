@@ -63,7 +63,6 @@ def add_to_default_stack(content):
         print(f"[clipapp/clipboard.py] Error in add_to_default_stack: {e}")
         return False
 
-
 # --- Core Clipboard Functions ---
 def clear_clipboard():
     try:
@@ -152,7 +151,6 @@ def handle_paste(identifier):
     else:
         print(f"[clipapp/clipboard.py] Slot {slot_key} not found or empty.")
 
-
 # --- Function to Call Backend AI Proxy ---
 def call_backend_ai(action, text_content):
     """ Calls the backend server API to perform AI actions. """
@@ -194,7 +192,6 @@ def call_backend_ai(action, text_content):
     except Exception as e:
          print(f"[clipapp/clipboard.py] Unexpected error during backend call: {type(e).__name__}: {e}")
          raise RuntimeError(f"An unexpected error occurred contacting the backend: {e}")
-
 
 # --- Functions Using Backend AI ---
 def rewrite_content(identifier):

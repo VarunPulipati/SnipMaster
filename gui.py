@@ -19,6 +19,9 @@ from slots import ( delete_slot, edit_slot, assign_slot, show_context_menu )
 # Import the new function and other needed functions from helpers
 from helpers import search_function, on_drag_start, on_drag_motion, resource_path
 
+icon_path = resource_path("assets/delete_icon.png")
+img = Image.open(icon_path)
+
 
 # --- Globals ---
 root = None; close_button = None; new_window = None
